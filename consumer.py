@@ -28,12 +28,14 @@ def process_new_message(
 
     log.warning("[ ] Start processing message (expensive task!) %r", body)
     start_time = time.time()
+
+    number = int(body[-2:])
+    is_odd = number % 2 == 1
     ...
-    time.sleep(1)
+    time.sleep(1 * is_odd * 2)
     ...
     end_time = time.time()
     log.info("Finished processing message %r, sending ack!", body)
-    # /////////////////////////////////////////////////////////////
     ch.basic_ack(delivery_tag=method.delivery_tag) # delivery tag confrims that message was delivered
     log.warning(
         "[X] Finished in %.2fs processing message %r",
@@ -42,15 +44,16 @@ def process_new_message(
     )
 
 def consume_messages(channel: "BlockingChannel") -> None:
+    channel.basic_qos(prefetch_count=1) # consumer will process only one message at a time consumer handle by the capacity of the consumer
     channel.basic_consume(
         queue=MQ_ROUTING_KEY,
-        on_message_callback=process_new_message
+        on_message_callback=process_new_message,
     )
-    log.warning("Waiting messages...")
-    channel.start_consuming() # blockng call
+    log.info("Waiting messages...")
+    channel.start_consuming() # blocking call
 
 def main():
-    configure_logging(level=logging.INFO)
+    configure_logging(level=logging.WARN)
     with get_connection() as connection:
         log.info("Created connection: %s", connection)
         with connection.channel() as channel:
